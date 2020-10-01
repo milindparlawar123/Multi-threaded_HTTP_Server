@@ -9,7 +9,6 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TimeZone;
@@ -84,19 +83,24 @@ class ServerThread extends Thread {
 				// + "Content-Length: " + (res.length()) + "\n\n";
 
 				SimpleDateFormat format = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z");
-
+				format.setTimeZone(TimeZone.getTimeZone("GMT"));
 				System.out.println();
 
-				File filePath = new File(new File(System.getProperty("user.dir")).getParent() + File.separator + "www"
-						+ File.separator + filename);
+				File path = new File(new File(System.getProperty("user.dir")).getParent());
+				path = new File(path + "/..");
+
+				File filePath = new File(path.getCanonicalPath() + File.separator + "www" + File.separator + filename);
 
 				if (!Files.exists(Paths.get(filePath.getPath()))) {
+
 					System.out.println(" not exist >>>>>" + filePath.getPath());
 					String res = "HTTP/1.1 404 Not Found\n\n"
 							+ "<html><head></head>  <body><h1> file you requested is not found, please provide "
 							+ "valid file name </h1></body> </html>";
 					outputStream.write(res.getBytes());
+
 				} else {
+
 					System.out.println("inside ..." + filePath.getPath());
 					String send = "HTTP/1.0 200 OK\n" + "Server: HTTP server/0.1\n" + "Date: "
 							+ format.format(new java.util.Date()) + "\n" + "Content-type: " + "html"
@@ -105,9 +109,9 @@ class ServerThread extends Thread {
 					outputStream.write(send.getBytes());
 
 					Files.copy(Paths.get(filePath.toString()), outputStream);
-					String sAddr=socket.getInetAddress()+"";
-					sAddr=sAddr.substring(1);
-					
+					String sAddr = socket.getInetAddress() + "";
+					sAddr = sAddr.substring(1);
+
 					String key = "/" + filename + "|" + sAddr + "|" + socket.getPort() + "|";
 
 					Server.storeRequest(key);
