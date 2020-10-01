@@ -20,16 +20,16 @@ public class Server {
 	private static Map<String, Integer> map;
 
 	public static void main(String[] args) {
-		
+
 		map = new LinkedHashMap<String, Integer>();
 		try {
-			System.out.println("Server listening : "+ InetAddress.getLocalHost().getCanonicalHostName());
+			System.out.println("Server listening : " + InetAddress.getLocalHost().getCanonicalHostName());
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.out.println("Port number: " + 8080);
-		
+		System.out.println("PORT NUMBER : " + 8080);
+
 		ServerThread serverThread = new ServerThread();
 		serverThread.start();
 
@@ -68,72 +68,89 @@ class ServerThread extends Thread {
 
 			try {
 
-				System.out.println("LISTENING");
+				// System.out.println("LISTENING");
 				socket = serverSocket.accept();
 
 				inputStream = socket.getInputStream();
 				outputStream = socket.getOutputStream();
 				BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-				String input = "";
+				// String input = "";
 				String temp = "";
 				String[] array = null;
 
 				String filename = "";
+				boolean isGetReq = false;
 				if ((temp = bufferedReader.readLine()) != null) {
-					System.out.println("   " + temp);
-					array = temp.split(" ");
-					System.out.println("got it  " + array[1].substring(1));
-					filename = array[1].substring(1);
-					if (temp.length() < 1) {
-						break;
+
+					if (temp.startsWith("GET")) {
+						isGetReq = true;
 					}
-					input += temp;
+					array = temp.split(" ");
+
+					filename = array[1].substring(1);
 				}
-				// System.out.println(input);
+				// isGetReq : to check whether its get request or not
+				if (isGetReq) {
 
-				// + "Content-Length: " + (res.length()) + "\n\n";
+					// date format
+					SimpleDateFormat format = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z");
+					format.setTimeZone(TimeZone.getTimeZone("EST"));
+					// one directory up - to read objects from www directory
+					File path = new File(new File(System.getProperty("user.dir")).getParent());
+					path = new File(path + "/..");
 
-				SimpleDateFormat format = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z");
-				format.setTimeZone(TimeZone.getTimeZone("GMT"));
-				System.out.println();
+					File filePath = new File(
+							path.getCanonicalPath() + File.separator + "www" + File.separator + filename);
+					// if invalid file requested
+					if (!Files.exists(Paths.get(filePath.getPath()))) {
 
-				File path = new File(new File(System.getProperty("user.dir")).getParent());
-				path = new File(path + "/..");
+						// System.out.println(" not exist >>>>>" + filePath.getPath());
+						String res = "HTTP/1.1 404 Not Found\n\n"
+								+ "<html><head></head>  <body><h1> file you requested is not found, please provide "
+								+ "valid file name </h1></body> </html>";
+						outputStream.write(res.getBytes());
 
-				File filePath = new File(path.getCanonicalPath() + File.separator + "www" + File.separator + filename);
+					} else {
 
-				if (!Files.exists(Paths.get(filePath.getPath()))) {
+						// to serve valid get request
+						// response header content
+						String send = "HTTP/1.0 200 OK\n" + "Server: HTTP web server/0.1\n" + "Date: "
+								+ format.format(new java.util.Date()) + "\n" + "Content-type: "
+								+ Files.probeContentType(filePath.toPath()) + "\n" + "Content-Length: "
+								+ (filePath.length()) + "\n\n";
+						// System.out.println(send);
+						outputStream.write(send.getBytes());
+						
+                        //copy requested file
+						Files.copy(Paths.get(filePath.toString()), outputStream);
+						String sAddr = socket.getInetAddress() + "";
+						sAddr = sAddr.substring(1);
 
-					System.out.println(" not exist >>>>>" + filePath.getPath());
-					String res = "HTTP/1.1 404 Not Found\n\n"
-							+ "<html><head></head>  <body><h1> file you requested is not found, please provide "
-							+ "valid file name </h1></body> </html>";
-					outputStream.write(res.getBytes());
+						String key = "/" + filename + "|" + sAddr + "|" + socket.getPort() + "|";
+						// storing request in map to keep count
+						Server.storeRequest(key);
+						Server.printRequest(key);
 
+						// System.out.println(" filePath.toString() "+filePath.toString());
+					}
+					// outputStream.close();
 				} else {
-
-					System.out.println("inside ..." + filePath.getPath());
-					String send = "HTTP/1.0 200 OK\n" + "Server: HTTP server/0.1\n" + "Date: "
-							+ format.format(new java.util.Date()) + "\n" + "Content-type: " + "html"
-							+ "Content-Length: " + (filePath.length()) + "\n\n";
-
-					outputStream.write(send.getBytes());
-
-					Files.copy(Paths.get(filePath.toString()), outputStream);
-					String sAddr = socket.getInetAddress() + "";
-					sAddr = sAddr.substring(1);
-
-					String key = "/" + filename + "|" + sAddr + "|" + socket.getPort() + "|";
-
-					Server.storeRequest(key);
-					Server.printRequest(key);
-
-					// System.out.println(" filePath.toString() "+filePath.toString());
+					String res = "HTTP/1.1 404 Not Found\n"
+							+ "<html><head></head>  <body><h1> we are serving only GET request"
+							+ "</h1></body> </html>";
+					outputStream.write(res.getBytes());
 				}
-				// outputStream.close();
 
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
+				String res = "HTTP/1.1 404 Not Found\n" + "<html><head></head>  <body><h1> provide valid request"
+						+ "</h1></body> </html>";
+				try {
+					outputStream.write(res.getBytes());
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 				e.printStackTrace();
 			} finally {
 
@@ -147,7 +164,6 @@ class ServerThread extends Thread {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				System.out.println("closed");
 			}
 		}
 
