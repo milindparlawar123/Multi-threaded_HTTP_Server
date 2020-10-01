@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -18,7 +20,16 @@ public class Server {
 	private static Map<String, Integer> map;
 
 	public static void main(String[] args) {
+		
 		map = new LinkedHashMap<String, Integer>();
+		try {
+			System.out.println("Server listening : "+ InetAddress.getLocalHost().getCanonicalHostName());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.println("Port number: " + 8080);
+		
 		ServerThread serverThread = new ServerThread();
 		serverThread.start();
 
